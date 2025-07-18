@@ -107,24 +107,15 @@
   </div>
 
   <script>
-    // Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+    const firebaseConfig = {
+      apiKey: "AIzaSyAzdKqRBJQemPQHLAFpwSgh1YZZE-fVbBk",
+      authDomain: "project-task-tool-8145c.firebaseapp.com",
+      projectId: "project-task-tool-8145c",
+      storageBucket: "project-task-tool-8145c.firebasestorage.app",
+      messagingSenderId: "1027540118707",
+      appId: "1:1027540118707:web:8b8472af25fb3096cc14c6"
+    };
 
-// Your web app's Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyAzdKqRBJQemPQHLAFpwSgh1YZZE-fVbBk",
-  authDomain: "project-task-tool-8145c.firebaseapp.com",
-  projectId: "project-task-tool-8145c",
-  storageBucket: "project-task-tool-8145c.firebasestorage.app",
-  messagingSenderId: "1027540118707",
-  appId: "1:1027540118707:web:8b8472af25fb3096cc14c6"
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-    
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.firestore();
