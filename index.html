@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Task Tracker</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f4f4f4;
+      margin: 0;
+      padding: 1rem;
+    }
+    h2 {
+      text-align: center;
+    }
+    .board {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      margin-top: 1rem;
+    }
+    .column {
+      background: #fff;
+      padding: 1rem;
+      border-radius: 8px;
+      width: 300px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    .column h3 {
+      margin-top: 0;
+    }
+    .task {
+      background: #e0e0e0;
+      margin-bottom: 0.5rem;
+      padding: 0.5rem;
+      border-radius: 4px;
+      cursor: grab;
+    }
+    .task.dragging {
+      opacity: 0.5;
+    }
+    .task-header {
+      font-weight: bold;
+    }
+    .task-meta {
+      font-size: 0.85rem;
+      color: #555;
+    }
+    .high { background-color: #ffb3b3; }
+    .medium { background-color: #fff3b3; }
+    .low { background-color: #b3ffb3; }
+    #new-task {
+      display: flex;
+      justify-content: center;
+      margin-top: 1rem;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    #new-task input, #new-task select {
+      padding: 0.5rem;
+    }
+    #new-task input[type="text"] {
+      width: 200px;
+    }
+  </style>
+  <script defer src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+</head>
+<body>
+  <h2>Task Tracker</h2>
+
+  <div id="auth">
+    <input type="email" id="email" placeholder="Email">
+    <input type="password" id="password" placeholder="Password">
+    <button onclick="login()">Login</button>
+    <button onclick="signup()">Sign Up</button>
+    <button onclick="logout()">Logout</button>
+  </div>
+
+  <div id="new-task">
+    <input type="text" id="task-input" placeholder="New task..." />
+    <input type="date" id="task-date" />
+    <select id="task-priority">
+      <option value="low">Low</option>
+      <option value="medium">Medium</option>
+      <option value="high">High</option>
+    </select>
+    <button onclick="addTask()">Add</button>
+  </div>
+
+  <div class="board">
+    <div class="column" ondragover="allowDrop(event)" ondrop="drop(event, 'todo')">
+      <h3>To Do</h3>
+      <div id="todo" class="task-list"></div>
+    </div>
+    <div class="column" ondragover="allowDrop(event)" ondrop="drop(event, 'in-progress')">
+      <h3>In Progress</h3>
+      <div id="in-progress" class="task-list"></div>
+    </div>
+    <div class="column" ondragover="allowDrop(event)" ondrop="drop(event, 'done')">
+      <h3>Done</h3>
+      <div id="done" class="task-list"></div>
+    </div>
+  </div>
+
+  <script>
+    // Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyAzdKqRBJQemPQHLAFpwSgh1YZZE-fVbBk",
+  authDomain: "project-task-tool-8145c.firebaseapp.com",
+  projectId: "project-task-tool-8145c",
+  storageBucket: "project-task-tool-8145c.firebasestorage.app",
+  messagingSenderId: "1027540118707",
+  appId: "1:1027540118707:web:8b8472af25fb3096cc14c6"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+    
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    let currentUser = null;
+    let currentDrag = null;
+
+    function allowDrop(e) { e.preventDefault(); }
+    function drag(e) {
+      currentDrag = e.target;
+      e.target.classList.add('dragging');
+    }
+    function drop(e, columnId) {
+      e.preventDefault();
+      if (currentDrag) {
+        document.getElementById(columnId).appendChild(currentDrag);
+        currentDrag.classList.remove('dragging');
+        saveTasks();
+      }
+    }
+
+    function addTask() {
+      const input = document.getElementById("task-input");
+      const date = document.getElementById("task-date");
+      const priority = document.getElementById("task-priority");
+      const text = input.value.trim();
+      if (!text || !currentUser) return;
+      const task = document.createElement("div");
+      task.className = `task ${priority.value}`;
+      task.draggable = true;
+      task.ondragstart = drag;
+      task.innerHTML = `<div class="task-header">${text}</div><div class="task-meta">Due: ${date.value || 'N/A'} | Priority: ${priority.value}</div>`;
+      document.getElementById("todo").appendChild(task);
+      input.value = ""; date.value = ""; priority.value = "low";
+      saveTasks();
+    }
+
+    function saveTasks() {
+      if (!currentUser) return;
+      const data = {};
+      ['todo', 'in-progress', 'done'].forEach(id => {
+        data[id] = Array.from(document.getElementById(id).children).map(task => task.innerHTML);
+      });
+      db.collection("users").doc(currentUser.uid).set({ tasks: data });
+    }
+
+    function loadTasks() {
+      if (!currentUser) return;
+      db.collection("users").doc(currentUser.uid).get().then(doc => {
+        if (doc.exists) {
+          const saved = doc.data().tasks;
+          Object.keys(saved).forEach(id => {
+            const column = document.getElementById(id);
+            column.innerHTML = "";
+            saved[id].forEach(html => {
+              const task = document.createElement("div");
+              task.className = "task";
+              task.draggable = true;
+              task.ondragstart = drag;
+              task.innerHTML = html;
+              if (html.includes("Priority: high")) task.classList.add("high");
+              else if (html.includes("Priority: medium")) task.classList.add("medium");
+              else task.classList.add("low");
+              column.appendChild(task);
+            });
+          });
+        }
+      });
+    }
+
+    function login() {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      auth.signInWithEmailAndPassword(email, password).then(userCred => {
+        currentUser = userCred.user;
+        loadTasks();
+      });
+    }
+
+    function signup() {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      auth.createUserWithEmailAndPassword(email, password).then(userCred => {
+        currentUser = userCred.user;
+        db.collection("users").doc(currentUser.uid).set({ tasks: { todo: [], 'in-progress': [], done: [] } });
+      });
+    }
+
+    function logout() {
+      auth.signOut().then(() => {
+        currentUser = null;
+        ['todo', 'in-progress', 'done'].forEach(id => document.getElementById(id).innerHTML = "");
+      });
+    }
+  </script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('service-worker.js').catch(console.error);
+      });
+    }
+  </script>
+</body>
+</html>
